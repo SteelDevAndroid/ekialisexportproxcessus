@@ -25,6 +25,17 @@ java -jar target/export-processus-1.0.0.jar --input=/chemin/process.xlsx --outpu
 Les chemins contenant des espaces doivent être placés entre guillemets.
 Le répertoire de sortie doit exister. Le programme s'arrête après le traitement.
 
+## Intégration continue
+
+Le workflow GitHub Actions **Build JAR** lance les tests et génère le JAR avec
+Java 25 à chaque pull request et à chaque push sur `main`. Il peut aussi être
+lancé manuellement depuis l'onglet **Actions** une fois présent sur `main`.
+
+Après une exécution réussie, ouvrir **Actions → Build JAR → l'exécution → Artifacts**
+et télécharger **export-processus-jar**. L'archive contient le JAR exécutable
+`export-processus-1.0.0.jar` ; elle est conservée pendant 14 jours. Extraire le JAR,
+puis l'exécuter avec Java 25 selon la commande ci-dessus.
+
 ## Règles de traitement
 
 La première ligne doit contenir les en-têtes `Niveau` et `Processus` ; leur casse,

@@ -1,0 +1,37 @@
+name: Build JAR
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Tests et génération du JAR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Compiler et tester
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Publier le JAR exécutable
+        uses: actions/upload-artifact@v4
+        with:
+          name: export-processus-jar
+          path: target/*.jar
+          if-no-files-found: error
+          retention-days: 14
