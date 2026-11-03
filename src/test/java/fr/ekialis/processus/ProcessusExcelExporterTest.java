@@ -3,12 +3,15 @@ package fr.ekialis.processus;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,7 +54,7 @@ class ProcessusExcelExporterTest {
         exporter.export(input, output);
         try (var stream = Files.newInputStream(output); var workbook = new XSSFWorkbook(stream)) {
             var sheet = workbook.getSheetAt(0);
-            assertThat(sheet.getRow(0).getLastCellNum()).isEqualTo((short) 4);
+            assertThat(sheet.getRow(0).getLastCellNum()).isEqualTo((short) 8);
             assertThat(sheet.getRow(1).getCell(3).getCellType()).isEqualTo(CellType.STRING);
             assertThat(sheet.getRow(1).getCell(3).getStringCellValue()).isEqualTo("Racine");
         }
@@ -105,6 +108,76 @@ class ProcessusExcelExporterTest {
         }
         assertThatThrownBy(() -> exporter.export(input, directory.resolve("output.xlsx")))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Colonnes obligatoires");
+    }
+
+    @ParameterizedTest
+    @MethodSource("details")
+    void derivesCompanyAndPartsFromPr(String label, String sca, String pr1, String pr2, String pr3) throws Exception {
+        Path input = create(List.of("1|" + label), false);
+        Path output = directory.resolve("output.xlsx");
+        exporter.export(input, output);
+        try (var stream = Files.newInputStream(output); var workbook = new XSSFWorkbook(stream)) {
+            var sheet = workbook.getSheetAt(0);
+            assertThat(java.util.stream.IntStream.range(3, 8)
+                    .mapToObj(i -> sheet.getRow(0).getCell(i).getStringCellValue()).toList())
+                    .containsExactly("pr", "sca", "pr1", "pr2", "pr3");
+            assertThat(java.util.stream.IntStream.range(3, 8)
+                    .mapToObj(i -> sheet.getRow(1).getCell(i).getStringCellValue()).toList())
+                    .containsExactly(label, sca, pr1, pr2, pr3);
+        }
+    }
+
+    static Stream<Arguments> details() {
+        return Stream.of(
+                Arguments.of("ASF - Assister - Appeler - Informer", "ASF", "Assister", "Appeler", "Informer"),
+                Arguments.of("ESC - A#B - C#D", "ESC", "A", "B", "C#D"),
+                Arguments.of("COF - A - B#C - D", "COF", "A", "B", "C - D"),
+                Arguments.of("VA - A#B#C#D", "VA", "A", "B", "C#D"),
+                Arguments.of("ESCOTA - A - B", "ESC", "ESCOTA", "A", "B"),
+                Arguments.of("COFIROUTE#A#B", "COF", "COFIROUTE", "A", "B"),
+                Arguments.of("Sans société", "", "Sans société", "", ""),
+                Arguments.of("A - B", "", "A", "B", ""),
+                Arguments.of("A#B", "", "A", "B", ""),
+                Arguments.of("A - #C", "", "A", "", "C"),
+                Arguments.of("A##", "", "A", "", ""),
+                Arguments.of("ASF - ", "ASF", "", "", ""),
+                Arguments.of("A#ESCOTA - C", "ESC", "A", "ESCOTA", "C"),
+                Arguments.of("A#COFIROUTE", "COF", "A", "COFIROUTE", ""),
+                Arguments.of("A#VA", "VA", "A", "VA", ""),
+                Arguments.of("VA - A#COF#ESC#ASF", "ASF", "A", "COF", "ESC#ASF"),
+                Arguments.of("ASF-A#B", "ASF", "ASF-A", "B", ""),
+                Arguments.of("asf - A", "", "asf", "A", ""));
+    }
+
+    @Test
+    void derivesDetailsFromFullHierarchyAndRecalculatesAllGeneratedColumns() throws Exception {
+        Path input = create(List.of("1|ESC - Assister", "2|Appeler", "3|Informer"), false);
+        Path firstOutput = directory.resolve("first.xlsx");
+        Path secondOutput = directory.resolve("second.xlsx");
+        exporter.export(input, firstOutput);
+        try (var stream = Files.newInputStream(firstOutput); var workbook = new XSSFWorkbook(stream)) {
+            var sheet = workbook.getSheetAt(0);
+            assertThat(sheet.getRow(3).getCell(3).getStringCellValue())
+                    .isEqualTo("ESC - Assister#Appeler#Informer");
+            assertThat(java.util.stream.IntStream.range(4, 8)
+                    .mapToObj(i -> sheet.getRow(3).getCell(i).getStringCellValue()).toList())
+                    .containsExactly("ESC", "Assister", "Appeler", "Informer");
+            // Les colonnes calculées existantes, même avec des formules, sont remplacées.
+            for (int i = 3; i < 8; i++) {
+                sheet.getRow(3).getCell(i).setCellFormula("\"Ancien\"");
+            }
+            try (var target = Files.newOutputStream(firstOutput)) {
+                workbook.write(target);
+            }
+        }
+        assertThat(exporter.export(firstOutput, secondOutput)).isEqualTo(3);
+        try (var stream = Files.newInputStream(secondOutput); var workbook = new XSSFWorkbook(stream)) {
+            var sheet = workbook.getSheetAt(0);
+            assertThat(sheet.getRow(0).getLastCellNum()).isEqualTo((short) 8);
+            assertThat(java.util.stream.IntStream.range(3, 8)
+                    .mapToObj(i -> sheet.getRow(3).getCell(i).getStringCellValue()).toList())
+                    .containsExactly("ESC - Assister#Appeler#Informer", "ESC", "Assister", "Appeler", "Informer");
+        }
     }
 
     private Path create(List<String> rows, boolean existingPr) throws Exception {
