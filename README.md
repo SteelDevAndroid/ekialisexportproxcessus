@@ -1,15 +1,12 @@
 # Export des processus
 
-Application en ligne de commande **Java 25 / Spring Boot 4.2** qui complète la
+Application en ligne de commande **Java 21 / Spring Boot 4.1** qui complète la
 première feuille d'un classeur `.xlsx` avec les colonnes `pr`, `sca`, `pr1`, `pr2`
 et `pr3`, via Apache POI.
 
-Le projet utilise **Spring Boot 4.2.0-RC1**, version 4.2 disponible sur Maven Central
-au moment de sa création (la version finale 4.2.0 n'est pas encore publiée).
-
 ## Compiler et exécuter
 
-Prérequis : JDK 25 et Maven 3.9 ou supérieur.
+Prérequis : JDK 21 et Maven 3.9 ou supérieur.
 
 ```sh
 mvn clean verify
@@ -29,13 +26,13 @@ Le répertoire de sortie doit exister. Le programme s'arrête après le traiteme
 ## Intégration continue
 
 Le workflow GitHub Actions **Build JAR** lance les tests et génère le JAR avec
-Java 25 à chaque pull request et à chaque push sur `main`. Il peut aussi être
+Java 21 à chaque pull request et à chaque push sur `main`. Il peut aussi être
 lancé manuellement depuis l'onglet **Actions** une fois présent sur `main`.
 
 Après une exécution réussie, ouvrir **Actions → Build JAR → l'exécution → Artifacts**
 et télécharger **export-processus-jar**. L'archive contient le JAR exécutable
 `export-processus-1.0.0.jar` ; elle est conservée pendant 14 jours. Extraire le JAR,
-puis l'exécuter avec Java 25 selon la commande ci-dessus.
+puis l'exécuter avec Java 21 selon la commande ci-dessus.
 
 ## Règles de traitement
 
